@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0] - 2026-09-10
+
+### Research-grade restructure
+- Added `AUDIT.md` — comprehensive repository audit
+- Added `research/` directory with `QUESTION.md`, `METHODOLOGY.md`, `RELATED_WORK.md`, `ROADMAP.md`, `REPRODUCIBILITY.md`, `LIMITATIONS.md`
+- Added `experiments/EXP-001/README.md` and `experiments/EXP-002/README.md`
+- Added `scripts/make_figures.py` — standalone figure generation from results JSONs
+- Added `figures/` root directory for publication-quality figures
+- Rewrote `README.md` as a research project page
+- Updated `RESULTS.md` with complete results, CV table, honest interpretation
+- Added `scripts/scratch/` probe scripts documentation
+
+### Previous
+
 ## [0.3.0] - 2026-09-09
 
 ### Added

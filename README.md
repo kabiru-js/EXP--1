@@ -1,123 +1,184 @@
 # Model Trajectory Research
 
-Investigating whether the inference trajectory of a language model contains measurable signals preceding incorrect answers.
+**Does the token-level generation trajectory of a language model contain measurable signals preceding incorrect answers?**
 
-## Question
+This project is designed to **falsify** this hypothesis, not confirm it. Null results are treated as valid scientific findings.
 
-Can we identify a measurable point during LLM generation where the model's trajectory begins to diverge toward an incorrect answer?
+---
 
-## Hypothesis
+## Research Question
 
-Incorrect generations may exhibit measurable changes in their inference trajectory before the final answer is produced.
+> Can token-level generation trajectories of a language model contain measurable signals that indicate whether the final answer will be correct or incorrect?
 
-**We do not assume this is true. The system is designed to falsify it.**
+**Null hypothesis:** Token-level trajectory signals (entropy, probability, margin, cumulative log-probability) are independent of whether the final generation is correct or incorrect.
 
-## Status
+---
 
-EXP-001 (baseline trajectory study) is complete: 1000 samples, results and
-report available under `experiments/EXP-001/` and `reports/EXP-001.md`.
-See `RESULTS.md` for the summary and honest interpretation.
+## Key Findings
 
-## Method
+| Experiment | Result | Status |
+|------------|--------|--------|
+| **EXP-001** | Token-level uncertainty strongly separates correct from incorrect (LR AUROC=0.975, GBT AUROC=0.995±0.006 CV, Cohen's d=−2.34 at 10%) | **Complete** |
+| **EXP-002** | No mid-chain divergence observed across 45 controlled probes (distilgpt2) | **Null result** |
 
-1. Run reasoning questions through a language model with token-level instrumentation
-2. Record per-token probability, entropy, log-probability, and top-k distributions at each generation step
-3. Label each trajectory as correct or incorrect
-4. Extract aggregate and temporal features from trajectories
-5. Train baseline classifiers to predict correctness from trajectory features
-6. Analyze temporal patterns: can correctness be predicted before generation completes?
-7. Compare correct vs incorrect trajectory distributions
+**Critical caveat:** In the task used (arithmetic-sequence continuation), the answer commits at the first token. The token-0 signal is the model's uncertainty about the first token, not a precursor to it. See `research/LIMITATIONS.md`.
+
+---
 
 ## Experiments
 
-| ID | Name | Status | Dataset | Model | Samples |
-|----|------|--------|---------|-------|---------|
-| EXP-001 | Baseline trajectory study | Complete | synthetic_sequences | distilgpt2 | 1000 |
+### EXP-001: Baseline Trajectory Study
 
-## Results
+- **Model:** distilgpt2 (124M), CPU
+- **Dataset:** synthetic_sequences (7-term arithmetic progressions)
+- **Samples:** 1,000 (466 correct / 534 incorrect)
+- **Instrumentation:** Per-token probability, entropy, margin, cumulative log-probability, top-k, logits
+- **Analysis:** 3 baseline classifiers, 5-fold CV, temporal prediction (Cohen's d at each generation fraction)
+- **Results:** [See RESULTS.md](RESULTS.md)
+- **Config:** `configs/EXP-001.yaml`
+- **Data:** `experiments/EXP-001/`
 
-See `reports/` for experiment reports and `experiments/` for raw results.
+### EXP-002: Mid-Chain Divergence Probes
 
-## Architecture
+- **Model:** distilgpt2 (CPU); Qwen2.5-0.5B-Instruct (deferred — no GPU)
+- **Probes:** 45 controlled arithmetic-chain continuations (P=2/3/4)
+- **Onset detection:** Greedy subsequence alignment of emitted integers vs expected continuation
+- **Result:** **0 mid-chain onset cases** — the model either continues the whole chain correctly or diverges at the first token
+- **Data:** `experiments/EXP-002/`
+
+---
+
+## Method
+
+1. Load dataset (arithmetic-sequence continuation tasks)
+2. Generate text with token-level instrumentation (`_TrajectoryLogitsProcessor` captures per-token probability, entropy, margin, top-k, cumulative log-prob, logits)
+3. Extract the answer (first integer in generated text)
+4. Label correctness (`int(predicted) == int(ground_truth)`)
+5. Store trajectories (one Parquet file per trajectory + DuckDB metadata)
+6. Extract 30 aggregate features per trajectory
+7. Train baseline classifiers (entropy threshold, logistic regression, gradient boosted tree)
+8. Compute AUROC, AUPRC, accuracy on held-out test set
+9. Verify with 5-fold stratified cross-validation
+10. Analyze temporal prediction (Cohen's d at each generation fraction)
+
+See `research/METHODOLOGY.md` for complete methodology documentation.
+
+---
+
+## Repository Structure
 
 ```
-src/
-├── config.py              # YAML-based experiment configuration
-├── datasets/              # Dataset loaders (GSM8K, TruthfulQA, synthetic)
-├── models/                # Model backends (HuggingFace, vLLM)
-├── inference/             # Generation pipeline with instrumentation
-├── trajectories/          # Parquet + DuckDB trajectory storage
-├── features/              # Feature extraction from trajectories
-├── evaluation/            # Baseline models and metrics
-├── analysis/              # Divergence analysis and temporal prediction
-├── visualization/         # Publication-quality figures
-├── reporting/             # Experiment report generation
-├── experiments/           # Experiment runner orchestration
-└── cli/                   # Terminal interface
+src/                          # Core source code
+  config.py                   # YAML-based experiment configuration
+  datasets/                   # Dataset loaders (GSM8K, TruthfulQA, synthetic)
+  models/                     # Model backends (HuggingFace)
+  inference/                  # Generation pipeline with instrumentation
+  trajectories/               # Parquet + DuckDB trajectory storage
+  features/                   # Feature extraction (30 aggregate features)
+  evaluation/                 # Baseline models and metrics
+  analysis/                   # Divergence analysis and temporal prediction
+  visualization/              # Publication-quality plotting
+  reporting/                  # Experiment report generation
+  experiments/                # Experiment runner orchestration
+  cli/                        # Terminal interface
+configs/                      # Experiment YAML configs
+scripts/                      # Run scripts and probes
+experiments/                  # Experiment data and results
+  EXP-001/                    # Full results (1000 trajectories, figures, CV)
+  EXP-002/                    # Probe results (45 probes)
+research/                     # Research methodology docs
+tests/                        # Test suite (smoke_test.py passes)
+figures/                      # Publication-quality figures
+reports/                      # Markdown reports
 ```
 
-## Reproduction
+---
+
+## Reproducing the Experiments
 
 ```bash
 # Install
 pip install -e ".[dev]"
 
-# Run EXP-001 (full 1000 samples)
+# Run EXP-001 (full 1000 samples, ~23 min on CPU)
 python scripts/run_exp001.py
 
 # Quick test (100 samples)
 python scripts/run_exp001.py --samples 100
 
-# Analyze existing results
+# Analyze existing data (regenerate figures)
 python scripts/run_exp001.py --analyze-only
 
+# Cross-validation check
+python scripts/cv_check_exp001.py
+
+# Generate all figures from existing results
+python scripts/make_figures.py
+
 # Run tests
-pytest tests/ -v
+python tests/smoke_test.py
 ```
 
-## CLI
+**Note:** `pytest tests/` hangs in PowerShell. Use `python tests/smoke_test.py` instead.
 
-```bash
-# Run experiment
-research run configs/EXP-001.yaml
+See `research/REPRODUCIBILITY.md` for complete reproducibility guide.
 
-# Analyze
-research analyze configs/EXP-001.yaml
-
-# Inspect results
-research inspect EXP-001
-
-# List experiments
-research list-experiments
-
-# Generate report
-research report configs/EXP-001.yaml
-```
+---
 
 ## Limitations
 
-- Limited to models where token-level probabilities are accessible
-- Answer extraction may not handle all answer formats
-- Small-scale study; results may not generalize
-- Does not establish causal relationships
-- Single model, single dataset for EXP-001
+- **Answer commits at token 0-1** in the task used — the signal at early fractions is the first token's uncertainty, not a precursor
+- **Single task family** (arithmetic-sequence continuation) — other task families may behave differently
+- **Single model** (distilgpt2) — results may not generalize
+- **No GPU** — all experiments run on CPU; larger models not benchmarked
+- **Binary correctness** — partial correctness is not captured by baseline labels
+- **No prompt-position signals** — uncertainty at the last prompt token is not measured
+- **Correlation ≠ causation** — the experiment measures correlation, not causal relationships
 
-## Open Questions
+See `research/LIMITATIONS.md` for the complete limitations list.
 
-1. Do aggregate uncertainty features predict correctness better than chance?
-2. Is there a temporal pattern that emerges before incorrect answers?
-3. Does the signal generalize across model families?
-4. Can the signal be used for intervention (early stopping, re-sampling)?
+---
 
-## Related Work
+## Roadmap
 
-This project is informed by research in:
-- Uncertainty estimation in language models
-- Calibration and confidence
-- Semantic entropy
-- Hallucination detection
-- Selective prediction
-- Process supervision and verifier models
-- Mechanistic interpretability
+| Experiment | Question | Status |
+|------------|----------|--------|
+| EXP-003 | What is the model's uncertainty at the last prompt token? | Not started |
+| EXP-004 | Does the phenomenon generalize to other task families? | Not started |
+| EXP-005 | Does the phenomenon appear in other models? | Blocked (no GPU) |
+| EXP-006 | Is the EXP-002 null result due to low sample size? | Blocked (no GPU) |
+| EXP-007 | Does prompt structure affect the phenomenon? | Not started |
 
-We explicitly distinguish what is already known from what this experiment tests. This project does not claim novelty.
+See `research/ROADMAP.md` for details.
+
+---
+
+## Status
+
+- EXP-001: **Complete** — documented in `reports/EXP-001.md`
+- EXP-002: **Incomplete on hardware** — null result documented in `reports/EXP-002.md`
+- Research restructure: **Complete** — `AUDIT.md`, `research/`, experiment READMEs
+- Next: EXP-003 (prompt-position uncertainty) requires code modification
+
+---
+
+## What This Project Is NOT
+
+- **Not a benchmark** — this is a focused investigation of a specific hypothesis
+- **Not mechanistic interpretability** — no internal representation analysis
+- **Not training/fine-tuning** — all experiments use pretrained models
+- **Not prompt engineering** — the prompt template is minimal (`"{question}"`)
+- **Not causal inference** — correlation between uncertainty and correctness is measured, not causation
+
+---
+
+## Related Areas
+
+- Token-level uncertainty in LLM generation
+- Detecting errors in model outputs (self-correction, abstention)
+- Temporal analysis of reasoning trajectories
+- Arithmetic reasoning in language models (GSM8K, MATH)
+- Null result reporting in ML research
+- Reproducibility in LLM experiments
+
+See `research/RELATED_WORK.md` for a structured discussion (TODO reading list, no fabricated references).

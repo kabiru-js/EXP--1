@@ -62,6 +62,26 @@ within the 16-token window.
 3. Synthetic task; real open-ended language tasks unaddressed.
 4. Findings are correlational, not causal.
 
+## EXP-002: Onset Feasibility Diagnostic
+
+Status: Incomplete on available hardware (no NVIDIA driver/GPU; Qwen2.5-0.5B-Instruct not cached).
+
+### distilgpt2 arithmetic-chain continuation probes (45 generations, P=2/3/4)
+
+- Mid-chain onset (several correct terms, then a wrong one): **0 observed**
+- The model either continues the entire run correctly (step-1 sequences) or diverges at the very first continuation integer
+- Per-token instrumentation (raw logits, entropy, top-k, margin, cumulative log-prob) validated end-to-end; subsequence-based onset detection worked correctly
+
+### Qwen2.5-0.5B-Instruct
+
+Not benchmarked — not cached (~1GB), download infeasible, no NVIDIA driver on this machine, PyTorch is CPU-only.
+
+### Distinction
+
+This is a null result for this model/task combination, **not** proof the phenomenon is absent. EXP-003 requires an NVIDIA GPU + a reasoning-capable model to test whether the "initially correct then diverged" pattern occurs at a non-trivial rate.
+
+See `reports/EXP-002.md` and `experiments/EXP-002/exp002_results.json` for full detail and representative trajectories.
+
 ## Next experiments (candidate)
 
 - **EXP-002:** Longer trajectories with a held answer — e.g., linear

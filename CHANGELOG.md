@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0] - 2026-09-09
+
+### Added
+- EXP-002 onset diagnostic: subsequence-based onset detection on token-level signals
+- `scripts/exp002_qwen.py` (Qwen CPU experiment script, deferred)
+- `experiments/EXP-002/exp002_results.json` and `reports/EXP-002.md`
+
+### Findings
+- EXP-001: GBT AUROC=1.000 single split; 5-fold CV confirms AUROC=0.9946±0.0061 (genuine signal)
+- EXP-001 limitations documented: correctness commits at token 0-1, no distinct pre-error degradation phase
+- EXP-002: distilgpt2 produces onset at term 0 in 100% of 45 arithmetic-chain probes; mid-chain onset count = 0. Qwen2.5-0.5B-Instruct not benchmarked (not cached, no NVIDIA driver, CPU-only PyTorch)
+
 ## [0.2.0] - 2026-09-09
 
 ### Added

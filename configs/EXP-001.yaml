@@ -1,0 +1,64 @@
+experiment:
+  id: "EXP-001"
+  name: "baseline-trajectory-analysis"
+  description: >
+    Baseline study: Run arithmetic-sequence continuation questions
+    through a small model, extract token-level trajectory features,
+    and investigate whether incorrect trajectories exhibit measurable
+    divergence before the final answer is committed.
+  dataset:
+    name: "synthetic_sequences"
+    split: "test"
+    samples: 1000
+    cache_dir: "data/cache"
+  model:
+    provider: "huggingface"
+    name: "distilgpt2"
+    dtype: "float32"
+    device_map: "cpu"
+  generation:
+    temperature: 0.7
+    max_tokens: 16
+    top_p: 0.95
+    top_k: 50
+    seed: 42
+    do_sample: true
+    num_return_sequences: 1
+  prompt_template: "{question}"
+  features:
+    token_probability: true
+    entropy: true
+    top_k: true
+    top_k_count: 10
+    hidden_states: false
+    attention: false
+    logits: true
+  evaluation:
+    metrics:
+      - auroc
+      - auprc
+      - accuracy
+      - precision
+      - recall
+      - calibration
+    temporal_fractions:
+      - 0.1
+      - 0.2
+      - 0.3
+      - 0.4
+      - 0.5
+      - 0.6
+      - 0.7
+      - 0.8
+      - 0.9
+      - 1.0
+  baseline_models:
+    - "entropy_threshold"
+    - "logistic_regression"
+    - "gradient_boosted_tree"
+
+storage:
+  base_dir: "experiments"
+  trajectories_dir: "experiments/trajectories"
+  reports_dir: "reports"
+  figures_dir: "reports/figures"

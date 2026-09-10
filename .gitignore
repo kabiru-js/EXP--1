@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Project data (datasets, caches, model weights)
+data/
+*.pt
+*.safetensors
+
+# Experiment artifacts are large raw dumps (parquet per trajectory)
+experiments/*/trajectories/
+experiments/*/*.duckdb
+
+# Keep reports and figures (small, valuable) but ignore heavy intermediates
+reports/*_metadata.json
+
+# Tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# OS/IDE
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/
